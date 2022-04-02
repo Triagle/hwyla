@@ -10,6 +10,8 @@ pycairo = "*"
 clipboard = "*"
 pyperclip = "*"
 pyclip = "*"
+matplotlib = "*"
+pillow = "*"
 
 [dev-packages]
 

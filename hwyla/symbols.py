@@ -1,3 +1,7 @@
+from gi.repository import GLib, GdkPixbuf
+from . import icons
+from importlib import resources
+
 CLASSES = {
     31: "A",
     32: "B",
@@ -369,3 +373,8 @@ CLASSES = {
     1396: "\\AE",
     1400: "\\guillemotleft",
 }
+
+
+def symbol_to_pixbuf(sym_id):
+    with resources.path(icons, f"{sym_id}.svg") as path:
+        return GdkPixbuf.Pixbuf.new_from_file_at_scale(str(path), -1, 32, True)

@@ -4,13 +4,13 @@ import gi
 import cairo
 import pyclip
 from datetime import datetime
-import model
+from . import model, symbols
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gdk, Gtk, Adw
+from gi.repository import Gdk, Gtk, Adw, GdkPixbuf
 
 
 class MainWindow(Gtk.ApplicationWindow):
@@ -20,20 +20,26 @@ class MainWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.set_title("hwyla")
         self.set_default_size(612, 600)
         self.container = Gtk.Box()
         self.set_child(self.container)
         self._active_stroke = False
-        self.symbol_store = Gtk.ListStore(int, str)
+        self.symbol_store = Gtk.ListStore(int, str, GdkPixbuf.Pixbuf)
         self.symbol_list = Gtk.TreeView(model=self.symbol_store)
         self.symbol_list.set_size_request(200, -1)
         self.symbol_list.set_vexpand(True)
+
         text_renderer = Gtk.CellRendererText()
         column = Gtk.TreeViewColumn("Symbol", text_renderer, text=1)
         self.symbol_list.append_column(column)
         selection = self.symbol_list.get_selection()
         selection.set_mode(Gtk.SelectionMode.SINGLE)
         selection.connect("changed", self._copy_selection)
+
+        icon_renderer = Gtk.CellRendererPixbuf()
+        icon_column = Gtk.TreeViewColumn("Preview", icon_renderer, pixbuf=2)
+        self.symbol_list.append_column(icon_column)
 
         self.character_canvas = Gtk.DrawingArea()
         self.character_canvas.set_draw_func(self._draw, None)
@@ -63,8 +69,9 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _copy_selection(self, selection):
         model, iter = selection.get_selected()
-        sel = model.get(iter, 1)[0]
-        pyclip.copy(sel)
+        if iter:
+            sel = model.get(iter, 1)[0]
+            pyclip.copy(sel)
 
     def _reset_canvas(self, button):
         self._accumulated_path = []
@@ -108,8 +115,9 @@ class MainWindow(Gtk.ApplicationWindow):
             list(itertools.chain(*self._accumulated_path)), k=10
         )
         self.symbol_store.clear()
-        for i, character in enumerate(classes):
-            self.symbol_store.insert_with_values(-1, (0, 1), (i, character))
+        for i, (sym_id, character) in enumerate(classes):
+            pix = symbols.symbol_to_pixbuf(sym_id)
+            self.symbol_store.insert_with_values(-1, (0, 1, 2), (i, character, pix))
 
 
 class Hwyla(Adw.Application):
@@ -122,6 +130,6 @@ class Hwyla(Adw.Application):
         self.win.present()
 
 
-if __name__ == "__main__":
+def main():
     app = Hwyla(application_id="com.github.triagle.hwyla")
     app.run(sys.argv)

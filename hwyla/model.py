@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import tensorflow as tf
-import symbols
+from . import symbols, model_tflite
+from importlib import resources
 
-MODEL_FILE = "./model.tflite"
+tf.config.set_visible_devices([], "GPU")
 
 
 def _scale_time_and_coordinates(strokes):
@@ -35,7 +36,8 @@ def _scale_time_and_coordinates(strokes):
 
 class Classifier:
     def __init__(self):
-        self.model = tf.lite.Interpreter(MODEL_FILE)
+        with resources.path(model_tflite, "model.tflite") as model_path:
+            self.model = tf.lite.Interpreter(str(model_path))
         self.model.allocate_tensors()
 
     def classify(self, samples, k=5):
@@ -48,4 +50,4 @@ class Classifier:
         output_idx = self.model.get_output_details()[0]["index"]
         output_data = self.model.get_tensor(output_idx)
         out = tf.math.top_k(output_data, k=k).indices.numpy()[0]
-        return [symbols.CLASSES[c] for c in out]
+        return [(c, symbols.CLASSES[c]) for c in out]
