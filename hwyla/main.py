@@ -10,16 +10,16 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gdk, Gtk, Adw, GdkPixbuf
+from gi.repository import Gdk, Gtk, Adw, GdkPixbuf, Gio, GLib
 
 
 class MainWindow(Gtk.ApplicationWindow):
     CANVAS_WIDTH = 512
     CANVAS_HEIGHT = 512
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, script=False, **kwargs):
         super().__init__(*args, **kwargs)
-
+        self.script_mode = script
         self.set_title("hwyla")
         self.set_default_size(612, 600)
         self.container = Gtk.Box()
@@ -69,9 +69,13 @@ class MainWindow(Gtk.ApplicationWindow):
 
     def _copy_selection(self, selection):
         model, iter = selection.get_selected()
-        if iter:
+        if iter and not self.script_mode:
             sel = model.get(iter, 1)[0]
             pyclip.copy(sel)
+        elif iter:
+            sel = model.get(iter, 1)[0]
+            print(sel)
+            self.close()
 
     def _reset_canvas(self, button):
         self._accumulated_path = []
@@ -123,13 +127,32 @@ class MainWindow(Gtk.ApplicationWindow):
 class Hwyla(Adw.Application):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+        self.add_main_option(
+            "script",
+            ord("s"),
+            GLib.OptionFlags.NONE,
+            GLib.OptionArg.NONE,
+            "Print first selected choice to stdout, rather than copying to clipboard, and quit.",
+            None,
+        )
         self.connect("activate", self.on_activate)
 
+    def do_command_line(self, command_line):
+        options = command_line.get_options_dict()
+        options = options.end().unpack()
+        self.script_mode = "script" in options
+        self.activate()
+        return 0
+
     def on_activate(self, app):
-        self.win = MainWindow(application=app)
+        self.win = MainWindow(script=self.script_mode, application=app)
         self.win.present()
 
 
 def main():
-    app = Hwyla(application_id="com.github.triagle.hwyla")
+    app = Hwyla(
+        application_id="com.github.triagle.hwyla",
+        flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
+    )
     app.run(sys.argv)
